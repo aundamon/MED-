@@ -1,0 +1,674 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workload Dashboard · MED</title>
+<style>
+:root {
+  --bg:#0f1117;--bg2:#1a1d27;--bg3:#22263a;
+  --card:#1e2235;--card2:#252a40;
+  --border:rgba(255,255,255,0.07);
+  --text:#e8eaf0;--muted:#6b7280;--subtle:#9ca3af;
+  --red:#ef4444;--orange:#f97316;--yellow:#eab308;
+  --green:#22c55e;--blue:#3b82f6;--purple:#a855f7;--cyan:#06b6d4;
+  --red-dim:rgba(239,68,68,0.15);--orange-dim:rgba(249,115,22,0.15);
+  --green-dim:rgba(34,197,94,0.15);--blue-dim:rgba(59,130,246,0.15);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--text);font-family:'Segoe UI',system-ui,sans-serif;font-size:14px;min-height:100vh}
+
+/* LOADING */
+#loading{display:flex;align-items:center;justify-content:center;min-height:100vh;flex-direction:column;gap:16px}
+.spinner{width:40px;height:40px;border:3px solid rgba(99,102,241,0.2);border-top-color:#818cf8;border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+
+/* HEADER */
+.header{background:linear-gradient(135deg,#1e3a8a 0%,#312e81 50%,#1e1b4b 100%);padding:24px 32px;position:relative;overflow:hidden}
+.header::before{content:'';position:absolute;inset:0;background:radial-gradient(ellipse at 80% 50%,rgba(99,102,241,0.3) 0%,transparent 60%)}
+.header-inner{position:relative;display:flex;justify-content:space-between;align-items:center}
+.header h1{font-size:22px;font-weight:800;letter-spacing:-.5px}
+.header h1 span{color:#818cf8}
+.header .sub{font-size:12px;opacity:.6;margin-top:3px}
+.header .meta{text-align:right;font-size:12px;opacity:.5;line-height:1.7}
+
+/* TABS */
+.tabs{display:flex;gap:4px;padding:16px 32px 0;border-bottom:1px solid var(--border)}
+.tab{padding:8px 18px;border-radius:8px 8px 0 0;font-size:13px;font-weight:600;cursor:pointer;color:var(--muted);transition:all .2s;border:none;background:none}
+.tab.active{color:var(--blue);background:var(--card);border-bottom:2px solid var(--blue)}
+.tab:hover:not(.active){color:var(--text);background:var(--bg3)}
+
+/* MAIN */
+.main{padding:24px 32px;max-width:1200px}
+.page{display:none}.page.active{display:block}
+
+/* ALERT */
+.alert-banner{display:flex;align-items:center;gap:12px;background:rgba(239,68,68,0.1);border:1px solid rgba(239,68,68,0.3);border-radius:10px;padding:12px 16px;margin-bottom:20px;animation:pulse-border 2s infinite}
+@keyframes pulse-border{0%,100%{border-color:rgba(239,68,68,0.3)}50%{border-color:rgba(239,68,68,0.7)}}
+.alert-dot{width:10px;height:10px;border-radius:50%;background:var(--red);animation:blink 1.2s infinite;flex-shrink:0}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+.alert-text{font-size:13px;color:#fca5a5}
+
+/* KPI */
+.kpi-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:20px}
+.kpi{background:var(--card);border-radius:12px;padding:16px 18px;border:1px solid var(--border);position:relative;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.kpi:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.3)}
+.kpi::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;background:var(--accent,#3b82f6)}
+.kpi-icon{font-size:22px;margin-bottom:6px}
+.kpi-val{font-size:28px;font-weight:800;color:var(--accent,#3b82f6);line-height:1}
+.kpi-label{font-size:11px;color:var(--muted);margin-top:4px;text-transform:uppercase;letter-spacing:.5px}
+.kpi-sub{font-size:11px;color:var(--subtle);margin-top:2px}
+
+/* PERSON CARDS */
+.person-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:20px}
+.pcard{background:var(--card);border-radius:12px;padding:18px;border:1px solid var(--border);cursor:pointer;transition:all .2s;position:relative;overflow:hidden}
+.pcard:hover{transform:translateY(-3px);box-shadow:0 12px 32px rgba(0,0,0,.4);border-color:rgba(255,255,255,.15)}
+.pcard-top{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.avatar{width:42px;height:42px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px;flex-shrink:0}
+.pcard-name{font-size:14px;font-weight:700}
+.pcard-level{font-size:11px;color:var(--muted)}
+.pcard-hours{font-size:26px;font-weight:800;margin-bottom:4px}
+.pcard-bar-bg{background:rgba(255,255,255,.08);border-radius:4px;height:6px;overflow:hidden}
+.pcard-bar{height:100%;border-radius:4px;transition:width 1s cubic-bezier(.4,0,.2,1)}
+.pcard-detail{font-size:11px;color:var(--muted);margin-top:6px}
+.pcard-badges{display:flex;gap:4px;flex-wrap:wrap;margin-top:8px}
+.badge{font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px}
+.badge.ot{background:rgba(239,68,68,.2);color:#f87171}
+.badge.wk{background:rgba(234,179,8,.2);color:#fbbf24}
+.badge.ok{background:rgba(34,197,94,.15);color:#4ade80}
+
+/* CHART */
+.grid3{display:grid;grid-template-columns:2fr 1fr;gap:16px;margin-bottom:16px}
+.card{background:var(--card);border-radius:12px;padding:20px;border:1px solid var(--border)}
+.card h3{font-size:13px;font-weight:700;color:var(--subtle);text-transform:uppercase;letter-spacing:.5px;margin-bottom:16px}
+.day-row{display:flex;align-items:center;gap:10px;margin-bottom:9px}
+.day-lbl{width:100px;font-size:11px;color:var(--subtle);flex-shrink:0}
+.day-lbl.weekend{color:var(--red);font-weight:700}
+.day-segs{flex:1;display:flex;height:24px;gap:2px}
+.seg{border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;color:rgba(255,255,255,.9);overflow:hidden;min-width:2px}
+.day-total{width:30px;text-align:right;font-size:12px;font-weight:700;color:var(--subtle);flex-shrink:0}
+
+/* DONUT */
+.donut-wrap{display:flex;align-items:center;gap:20px;flex-direction:column}
+.legend-item{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.legend-dot{width:10px;height:10px;border-radius:50%;flex-shrink:0}
+.legend-label{font-size:12px;flex:1}
+.legend-val{font-size:12px;font-weight:700}
+.legend-pct{font-size:11px;color:var(--muted);width:30px;text-align:right}
+
+/* TABLE */
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{padding:10px 12px;text-align:left;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;border-bottom:1px solid var(--border)}
+td{padding:10px 12px;border-bottom:1px solid var(--border)}
+tr:last-child td{border-bottom:none}
+tr:hover td{background:rgba(255,255,255,.02)}
+.chip{display:inline-block;padding:2px 8px;border-radius:8px;font-size:11px;font-weight:700}
+.chip.red{background:var(--red-dim);color:#f87171}
+.chip.orange{background:var(--orange-dim);color:#fb923c}
+.chip.green{background:var(--green-dim);color:#4ade80}
+.chip.gray{background:rgba(255,255,255,.07);color:var(--muted)}
+.chip.purple{background:rgba(168,85,247,.15);color:#c084fc}
+
+/* MODAL */
+.modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:100;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-bg.open{display:flex}
+.modal{background:var(--bg2);border:1px solid var(--border);border-radius:16px;padding:28px;width:500px;max-width:90vw;animation:slide-up .25s ease}
+@keyframes slide-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.modal h2{font-size:18px;font-weight:800;margin-bottom:4px}
+.modal .close{float:right;background:rgba(255,255,255,.1);border:none;color:var(--text);width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center}
+.modal-days{display:grid;grid-template-columns:repeat(auto-fill,minmax(70px,1fr));gap:6px;margin-top:8px}
+.day-box{background:var(--bg3);border-radius:8px;padding:8px 4px;text-align:center}
+.day-box .d{font-size:9px;color:var(--muted)}
+.day-box .h{font-size:16px;font-weight:800;margin:2px 0}
+.day-box .p{font-size:9px;color:var(--muted)}
+.day-box.weekend{background:rgba(239,68,68,.1)}
+.day-box.zero{opacity:.35}
+
+/* MISSING */
+.miss-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.miss-card{background:var(--card);border:1px solid rgba(239,68,68,.25);border-radius:12px;padding:16px;text-align:center;transition:all .2s}
+.miss-card:hover{border-color:var(--red);transform:translateY(-2px)}
+.miss-avatar{width:48px;height:48px;border-radius:50%;background:rgba(239,68,68,.15);border:2px dashed rgba(239,68,68,.5);display:flex;align-items:center;justify-content:center;margin:0 auto 10px;font-weight:800;font-size:16px;color:#f87171}
+.miss-name{font-size:13px;font-weight:700;margin-bottom:3px}
+.miss-level{font-size:11px;color:var(--muted);margin-bottom:8px}
+.miss-days{font-size:22px;font-weight:800;color:var(--red)}
+.miss-days-lbl{font-size:10px;color:var(--muted)}
+
+/* CHAT */
+.qbtn{background:var(--bg3);border:1px solid var(--border);color:var(--subtle);padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;transition:all .2s}
+.qbtn:hover{background:var(--card2);color:var(--text);border-color:rgba(255,255,255,.15)}
+.bubble{max-width:80%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.6;white-space:pre-wrap}
+.bubble.user{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.bubble.bot{align-self:flex-start;background:var(--card2);color:var(--text);border-bottom-left-radius:4px}
+.bubble.thinking{opacity:.6;font-style:italic}
+
+@media(max-width:768px){
+  .kpi-grid{grid-template-columns:repeat(2,1fr)}
+  .person-grid{grid-template-columns:1fr}
+  .grid3{grid-template-columns:1fr}
+  .miss-grid{grid-template-columns:repeat(2,1fr)}
+  .main{padding:16px}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div class="spinner"></div>
+  <div style="color:var(--muted);font-size:13px">กำลังโหลดข้อมูลจาก Google Drive…</div>
+</div>
+
+<div id="app" style="display:none">
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <h1>⚡ Workload <span>Dashboard</span></h1>
+      <div class="sub">Machine and Equipment Development · 7-Day Rolling Report</div>
+    </div>
+    <div class="meta" id="header-meta"></div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('overview')">📊 Overview</button>
+  <button class="tab" onclick="switchTab('missing')" id="tab-missing">🔴 ไม่กรอกข้อมูล</button>
+  <button class="tab" onclick="switchTab('project')">📁 Project Detail</button>
+  <button class="tab" onclick="switchTab('chat')">💬 ถามข้อมูล</button>
+</div>
+
+<div class="main">
+
+<div class="page active" id="page-overview">
+  <div class="alert-banner" id="alert-banner">
+    <div class="alert-dot"></div>
+    <div class="alert-text" id="alert-text"></div>
+  </div>
+  <div class="kpi-grid" id="kpi-grid"></div>
+  <div style="font-size:12px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">✅ กรอกข้อมูลแล้ว — คลิกเพื่อดูรายละเอียด</div>
+  <div class="person-grid" id="logged-grid"></div>
+  <div class="grid3">
+    <div class="card">
+      <h3>ชั่วโมงรายวัน (ทีม)</h3>
+      <div id="day-chart"></div>
+      <div id="day-legend" style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap;"></div>
+    </div>
+    <div class="card">
+      <h3>ประเภทงาน</h3>
+      <div class="donut-wrap" id="donut-wrap"></div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-missing">
+  <div class="alert-banner">
+    <div class="alert-dot"></div>
+    <div class="alert-text" id="missing-alert"></div>
+  </div>
+  <div class="miss-grid" id="miss-grid"></div>
+  <div class="card">
+    <h3>สรุป Compliance</h3>
+    <div style="display:flex;align-items:center;gap:20px;padding:10px 0">
+      <div style="font-size:48px;font-weight:900;color:#ef4444" id="compliance-pct"></div>
+      <div style="flex:1">
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">อัตราการกรอกข้อมูล</div>
+        <div style="font-size:13px;color:var(--muted)" id="compliance-text"></div>
+        <div style="margin-top:10px;background:rgba(255,255,255,.06);border-radius:8px;height:12px;overflow:hidden">
+          <div id="compliance-bar" style="height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:8px;transition:width 1s"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="page" id="page-project">
+  <div class="card">
+    <h3>รายละเอียดโปรเจกต์</h3>
+    <table>
+      <thead><tr><th>Project</th><th>พนักงาน</th><th>Charge Type</th><th style="text-align:right">ชั่วโมง</th><th>% ของทีม</th><th>สถานะ</th></tr></thead>
+      <tbody id="project-table"></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ======== CHAT PAGE ======== -->
+<div class="page" id="page-chat">
+  <div class="card">
+    <h3>💬 ถามข้อมูล Workload</h3>
+    <div id="chat-messages" style="min-height:280px;max-height:460px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:16px;padding-right:4px"></div>
+    <div style="display:flex;gap:10px">
+      <input id="chat-input" type="text"
+        placeholder="เช่น ใครทำงานมากที่สุด? หรือ project ไหน active บ้าง?"
+        style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit"
+        onkeydown="if(event.key==='Enter')sendChat()"/>
+      <button onclick="sendChat()"
+        style="background:var(--blue);border:none;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+        ส่ง ➤
+      </button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="qbtn" onclick="quickAsk('ใครทำงานมากที่สุดในสัปดาห์นี้?')">👤 ใครทำงานมากสุด?</button>
+      <button class="qbtn" onclick="quickAsk('มีใครทำงานวันหยุดบ้าง?')">📅 ทำงานวันหยุด</button>
+      <button class="qbtn" onclick="quickAsk('project ไหนใช้ชั่วโมงมากที่สุด?')">📁 Project หนักสุด</button>
+      <button class="qbtn" onclick="quickAsk('ใครยังไม่กรอกข้อมูลบ้าง?')">⚠️ ไม่กรอกข้อมูล</button>
+      <button class="qbtn" onclick="quickAsk('สรุปภาพรวม workload ของทีมสัปดาห์นี้')">📊 สรุปภาพรวม</button>
+    </div>
+  </div>
+</div>
+
+</div>
+</div>
+
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+// ── CONFIG ────────────────────────────────────────────────────────────────────
+const FILE_ID = '1eAqoKkeJ3Gwpculf0P1NRyDhLjNu2CXk';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIkpGRBjs49NtZVrqMC29BB5t06vwTTHRbBRDDDi2oLg4WhW25ZyVAkVaDd75a0gUarg/exec';
+const CSV_URL = APPS_SCRIPT_URL + '?action=csv';
+
+const ROSTER = [
+  {name:'Nathapong Nakgrod',    level:'S4'},
+  {name:'Dravid Tamsamak',      level:'S3'},
+  {name:'Thanundorn Yamsual',   level:'S3'},
+  {name:'Somchat Kraithep',     level:'S2'},
+  {name:'Charan Saensao',       level:'S2'},
+  {name:'Atjima Phanornuudomsuk', level:'S2'},
+  {name:'Purawat Ruangsri',     level:'S1'},
+  {name:'Eakapol Sangpare',     level:'O4'},
+  {name:'Sinchai Wichaksamethi',level:'O4'},
+  {name:'Phaisit Patchanee',    level:'O4'},
+  {name:'Natthaphong Auito',    level:'—'},
+  {name:'Witthawat Aumarom',    level:'O3'},
+];
+
+const COLORS = ['#dc2626','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f59e0b','#84cc16','#a855f7'];
+const TH_DAYS = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
+const TH_MONTHS = ['ม.ค.','ก.พ.','มี.ค.','เม.ย.','พ.ค.','มิ.ย.','ก.ค.','ส.ค.','ก.ย.','ต.ค.','พ.ย.','ธ.ค.'];
+
+// ── HELPERS ───────────────────────────────────────────────────────────────────
+function initials(name){ return name.split(' ').slice(0,2).map(w=>w[0]||'').join('').toUpperCase(); }
+function fmtDate(d){ return `${d.getDate()} ${TH_MONTHS[d.getMonth()]}`; }
+function fmtDateFull(d){ return `${d.getDate()} ${TH_MONTHS[d.getMonth()]} ${d.getFullYear()-1900+1900}`; }
+function dateKey(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`; }
+function isWeekend(d){ return d.getDay()===0||d.getDay()===6; }
+
+function parseDate(str){
+  if(!str) return null;
+  const m = str.match(/(\d+)-([A-Za-z]+)-(\d+)/);
+  if(!m) return null;
+  const months={Jan:0,Feb:1,Mar:2,Apr:3,May:4,Jun:5,Jul:6,Aug:7,Sep:8,Oct:9,Nov:10,Dec:11};
+  const yr = parseInt(m[3]);
+  return new Date(yr < 100 ? 2000+yr : yr, months[m[2]], parseInt(m[1]));
+}
+
+function parseCSV(text){
+  const lines = text.replace(/\r/g,'').trim().split('\n');
+  if(lines.length<2) return [];
+  const headers = splitCSVLine(lines[0]).map(h=>h.replace(/^"|"$/g,'').trim());
+  return lines.slice(1).filter(l=>l.trim()).map(line=>{
+    const vals = splitCSVLine(line).map(v=>v.replace(/^"|"$/g,'').trim());
+    return Object.fromEntries(headers.map((h,i)=>[h, vals[i]||'']));
+  });
+}
+
+function splitCSVLine(line){
+  const res=[]; let cur=''; let inQ=false;
+  for(let ch of line){
+    if(ch==='"') inQ=!inQ;
+    else if(ch===','&&!inQ){res.push(cur);cur='';}
+    else cur+=ch;
+  }
+  res.push(cur);
+  return res;
+}
+
+// ── FETCH ─────────────────────────────────────────────────────────────────────
+async function fetchCSV(){
+  const resp = await fetch(CSV_URL);
+  if(!resp.ok) throw new Error(`HTTP ${resp.status}`);
+  return await resp.text();
+}
+
+// ── PROCESS ───────────────────────────────────────────────────────────────────
+function processData(rows){
+  // Get date range
+  const dates = rows.map(r=>parseDate(r.DATE_ENTRY)).filter(Boolean);
+  if(!dates.length) return null;
+  const minDate = new Date(Math.min(...dates));
+  const maxDate = new Date(Math.max(...dates));
+
+  // Build all dates in range
+  const allDates = [];
+  for(let d=new Date(minDate); d<=maxDate; d.setDate(d.getDate()+1)){
+    allDates.push(new Date(d));
+  }
+
+  // Per-person data
+  const personMap = {};
+  ROSTER.forEach((p,i)=>{
+    personMap[p.name] = {
+      ...p, color: COLORS[i%COLORS.length],
+      totalHours:0, dayHours:{}, projects:new Set(), chargeTypes:{}
+    };
+  });
+
+  // Aggregate
+  rows.forEach(r=>{
+    const d = parseDate(r.DATE_ENTRY);
+    if(!d) return;
+    const hrs = parseFloat(r.HOURS)||0;
+    const name = r.USER_NAME;
+    if(!personMap[name]){
+      // person in data but not in roster — add them
+      const i = Object.keys(personMap).length;
+      personMap[name] = {
+        name, level: r.Employee_Level||'—', color: COLORS[i%COLORS.length],
+        totalHours:0, dayHours:{}, projects:new Set(), chargeTypes:{}
+      };
+    }
+    const p = personMap[name];
+    p.totalHours += hrs;
+    const dk = dateKey(d);
+    p.dayHours[dk] = (p.dayHours[dk]||0) + hrs;
+    if(r.PROJECT_NAME && r.PROJECT_NAME!=='Leave') p.projects.add(r.PROJECT_NAME);
+    const ct = r.CHARGE_TYPE_NAME || (r.PROJECT_NAME||'Other');
+    p.chargeTypes[ct] = (p.chargeTypes[ct]||0) + hrs;
+  });
+
+  // Charge type totals
+  const ctTotals = {};
+  rows.forEach(r=>{
+    const hrs = parseFloat(r.HOURS)||0;
+    const ct = r.CHARGE_TYPE_NAME || r.PROJECT_NAME || 'Other';
+    ctTotals[ct] = (ctTotals[ct]||0)+hrs;
+  });
+
+  // Project totals
+  const projMap = {};
+  rows.forEach(r=>{
+    const proj = r.PROJECT_NAME||'Unknown';
+    const hrs = parseFloat(r.HOURS)||0;
+    if(!projMap[proj]) projMap[proj]={name:proj,hours:0,people:new Set(),ct:r.CHARGE_TYPE_NAME||'—'};
+    projMap[proj].hours+=hrs;
+    projMap[proj].people.add(r.USER_NAME);
+  });
+
+  const logged = Object.values(personMap).filter(p=>p.totalHours>0);
+  const missing = ROSTER.filter(p=>!(personMap[p.name]&&personMap[p.name].totalHours>0));
+  const totalHours = logged.reduce((s,p)=>s+p.totalHours,0);
+
+  // Daily totals
+  const dayTotals = {};
+  allDates.forEach(d=>{ dayTotals[dateKey(d)]=0; });
+  rows.forEach(r=>{
+    const d=parseDate(r.DATE_ENTRY); if(!d) return;
+    dayTotals[dateKey(d)]=(dayTotals[dateKey(d)]||0)+(parseFloat(r.HOURS)||0);
+  });
+
+  return {minDate,maxDate,allDates,personMap,logged,missing,totalHours,ctTotals,projMap,dayTotals};
+}
+
+// ── RENDER ────────────────────────────────────────────────────────────────────
+function render(data){
+  const {minDate,maxDate,allDates,logged,missing,totalHours,ctTotals,projMap,dayTotals,personMap} = data;
+  const teamSize = ROSTER.length;
+  const pct = Math.round((logged.length/teamSize)*100);
+  const hasOT = logged.some(p=>Object.values(p.dayHours).some(h=>h>8));
+  const hasWknd = logged.some(p=>allDates.filter(d=>isWeekend(d)).some(d=>p.dayHours[dateKey(d)]>0));
+
+  // Header
+  document.getElementById('header-meta').innerHTML =
+    `${fmtDate(minDate)} – ${fmtDate(maxDate)} ${maxDate.getFullYear()}<br>` +
+    `ดึงข้อมูล: ${fmtDate(new Date())} ${new Date().getFullYear()}<br>` +
+    `<span style="color:#818cf8">● Live</span>`;
+
+  // Alert
+  const alerts=[];
+  if(missing.length) alerts.push(`<b style="color:#f87171">พบ ${missing.length} คนไม่กรอกข้อมูลในสัปดาห์นี้</b>`);
+  logged.filter(p=>Object.values(p.dayHours).some(h=>h>8)).forEach(p=>alerts.push(`${p.name.split(' ')[0]} OT`));
+  logged.filter(p=>allDates.filter(d=>isWeekend(d)).some(d=>p.dayHours[dateKey(d)]>0))
+        .forEach(p=>alerts.push(`${p.name.split(' ')[0]} ทำงานวันหยุด`));
+  document.getElementById('alert-text').innerHTML = alerts.join(' · ');
+
+  // KPI
+  const activeProj = Object.values(projMap).filter(p=>p.hours>0&&p.name!=='Leave'&&!p.name.includes('Report')&&!p.name.includes('Meeting')).length;
+  const otCount = logged.filter(p=>Object.values(p.dayHours).some(h=>h>8)||allDates.filter(d=>isWeekend(d)).some(d=>p.dayHours[dateKey(d)]>0)).length;
+  document.getElementById('kpi-grid').innerHTML = `
+    <div class="kpi" style="--accent:#3b82f6"><div class="kpi-icon">⏱️</div><div class="kpi-val">${Math.round(totalHours)}</div><div class="kpi-label">ชั่วโมงรวม</div><div class="kpi-sub">7 วันที่ผ่านมา</div></div>
+    <div class="kpi" style="--accent:#22c55e"><div class="kpi-icon">✅</div><div class="kpi-val">${logged.length}</div><div class="kpi-label">กรอกข้อมูล</div><div class="kpi-sub">จาก ${teamSize} คนในทีม</div></div>
+    <div class="kpi" style="--accent:#ef4444"><div class="kpi-icon">⚠️</div><div class="kpi-val">${missing.length}</div><div class="kpi-label">ไม่กรอกข้อมูล</div><div class="kpi-sub">${100-pct}% ของทีม${missing.length>teamSize*0.5?'!':''}</div></div>
+    <div class="kpi" style="--accent:#f97316"><div class="kpi-icon">🔥</div><div class="kpi-val">${otCount}</div><div class="kpi-label">OT / วันหยุด</div><div class="kpi-sub">ต้องติดตาม</div></div>
+    <div class="kpi" style="--accent:#a855f7"><div class="kpi-icon">📁</div><div class="kpi-val">${activeProj}</div><div class="kpi-label">Projects</div><div class="kpi-sub">ที่ active</div></div>`;
+
+  // Person cards
+  const maxH = Math.max(...logged.map(p=>p.totalHours),1);
+  document.getElementById('logged-grid').innerHTML = logged.sort((a,b)=>b.totalHours-a.totalHours).map(p=>{
+    const hasPersonOT = Object.values(p.dayHours).some(h=>h>8);
+    const hasPersonWknd = allDates.filter(d=>isWeekend(d)).some(d=>p.dayHours[dateKey(d)]>0);
+    const w = Math.round((p.totalHours/maxH)*100);
+    const hColor = p.totalHours>48?'#ef4444':p.totalHours>40?'#f97316':'#3b82f6';
+    const projs = [...p.projects].slice(0,2).map(n=>n.length>20?n.slice(0,20)+'…':n).join(', ')||'Non-project';
+    return `<div class="pcard" onclick="openModal('${p.name}')">
+      <div class="pcard-top">
+        <div class="avatar" style="background:${p.color}">${initials(p.name)}</div>
+        <div><div class="pcard-name">${p.name}</div><div class="pcard-level">${p.level}</div></div>
+      </div>
+      <div class="pcard-hours" style="color:${hColor}">${p.totalHours} <span style="font-size:14px;color:var(--muted)">ชม.</span></div>
+      <div class="pcard-bar-bg"><div class="pcard-bar" style="width:0%;background:${p.color}" data-w="${w}"></div></div>
+      <div class="pcard-detail">${allDates.filter(d=>p.dayHours[dateKey(d)]>0).length} วัน · ${projs}</div>
+      <div class="pcard-badges">
+        ${hasPersonOT?'<span class="badge ot">⚡ OT</span>':''}
+        ${hasPersonWknd?'<span class="badge wk">📅 วันหยุด</span>':''}
+        ${!hasPersonOT&&!hasPersonWknd?'<span class="badge ok">✓ ปกติ</span>':''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Day chart
+  const chartHTML = allDates.map(d=>{
+    const dk=dateKey(d);
+    const tot=dayTotals[dk]||0;
+    const wknd=isWeekend(d);
+    const segs = logged.filter(p=>p.dayHours[dk]>0).map(p=>{
+      const h=p.dayHours[dk];
+      return `<div class="seg" style="flex:${h};background:${p.color}" title="${p.name.split(' ')[0]} ${h}h">${h>=3?h:''}</div>`;
+    }).join('');
+    return `<div class="day-row">
+      <div class="day-lbl${wknd?' weekend':''}">${fmtDate(d)} ${TH_DAYS[d.getDay()]}${wknd?' 🔴':''}</div>
+      <div class="day-segs${wknd?' day-weekend-bg':''}">${segs||'<div class="seg" style="flex:1;background:rgba(255,255,255,0.04)"></div>'}</div>
+      <div class="day-total${wknd?` style="color:var(--red)"`:''}">${tot||''}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('day-chart').innerHTML = chartHTML;
+
+  // Day legend
+  document.getElementById('day-legend').innerHTML = logged.map(p=>
+    `<div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)">
+      <div style="width:10px;height:10px;border-radius:50%;background:${p.color}"></div>${p.name.split(' ')[0]}
+    </div>`).join('');
+
+  // Donut
+  const ctColors={'I/O Project Charge':'#3b82f6','Holding Charge':'#dc2626','Leave':'#a855f7'};
+  const ctItems = Object.entries(ctTotals).sort((a,b)=>b[1]-a[1]);
+  const donutColors=['#3b82f6','#dc2626','#6b7280','#a855f7','#f97316','#22c55e'];
+  const circumference=2*Math.PI*48; // r=48
+  let offset=0;
+  const arcs = ctItems.map((([ct,h],i)=>{
+    const frac=h/totalHours;
+    const arc=frac*circumference;
+    const col=donutColors[i%donutColors.length];
+    const s=`<circle cx="60" cy="60" r="48" fill="none" stroke="${col}" stroke-width="16"
+      stroke-dasharray="${arc.toFixed(1)} ${(circumference-arc).toFixed(1)}"
+      stroke-dashoffset="${(-offset).toFixed(1)}" transform="rotate(-90 60 60)" stroke-linecap="butt"/>`;
+    offset+=arc;
+    return {s,ct,h,col,pct:Math.round(frac*100)};
+  }));
+  document.getElementById('donut-wrap').innerHTML=`
+    <svg viewBox="0 0 120 120" width="130" height="130">
+      <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="16"/>
+      ${arcs.map(a=>a.s).join('')}
+      <text x="60" y="56" text-anchor="middle" fill="#e8eaf0" font-size="14" font-weight="800">${Math.round(totalHours)}</text>
+      <text x="60" y="68" text-anchor="middle" fill="#6b7280" font-size="8">ชม.</text>
+    </svg>
+    <div style="width:100%">${arcs.map(a=>`
+      <div class="legend-item">
+        <div class="legend-dot" style="background:${a.col}"></div>
+        <div class="legend-label">${a.ct}</div>
+        <div class="legend-val">${a.h}</div>
+        <div class="legend-pct">${a.pct}%</div>
+      </div>`).join('')}
+    </div>`;
+
+  // Missing tab
+  document.getElementById('tab-missing').textContent = `🔴 ไม่กรอกข้อมูล (${missing.length})`;
+  document.getElementById('missing-alert').innerHTML =
+    `<b style="color:#f87171">${missing.length} คนต่อไปนี้ไม่มีข้อมูลการบันทึกชั่วโมงใน 7 วันที่ผ่านมา (${fmtDate(minDate)} – ${fmtDate(maxDate)})</b>`;
+  document.getElementById('miss-grid').innerHTML = missing.map(p=>`
+    <div class="miss-card">
+      <div class="miss-avatar">${initials(p.name)}</div>
+      <div class="miss-name">${p.name}</div>
+      <div class="miss-level">${p.level}</div>
+      <div class="miss-days">0</div>
+      <div class="miss-days-lbl">ชม. ใน 7 วัน</div>
+    </div>`).join('');
+  document.getElementById('compliance-pct').textContent = pct+'%';
+  document.getElementById('compliance-text').textContent = `${logged.length} จาก ${teamSize} คน กรอกข้อมูลในสัปดาห์นี้`;
+  setTimeout(()=>{ document.getElementById('compliance-bar').style.width=pct+'%'; },300);
+
+  // Projects
+  const projRows = Object.values(projMap).sort((a,b)=>b.hours-a.hours).map(p=>{
+    const barW=Math.round((p.hours/totalHours)*100);
+    const chip = p.hours>48?'<span class="chip red">OT</span>':
+                 p.ct==='Holding Charge'?'<span class="chip orange">Holding</span>':
+                 p.ct==='I/O Project Charge'?'<span class="chip green">I/O</span>':
+                 p.name==='Leave'?'<span class="chip purple">ลา</span>':
+                 '<span class="chip gray">Non-project</span>';
+    return `<tr><td><b>${p.name}</b></td><td>${[...p.people].map(n=>n.split(' ')[0]).join(', ')}</td><td>${p.ct}</td>
+      <td style="text-align:right;font-weight:700">${p.hours}</td>
+      <td><div style="background:rgba(255,255,255,.06);border-radius:4px;height:8px;width:120px">
+        <div style="width:${barW}%;height:100%;background:#3b82f6;border-radius:4px"></div></div></td>
+      <td>${chip}</td></tr>`;
+  }).join('');
+  document.getElementById('project-table').innerHTML = projRows;
+
+  // Store for modals
+  window._personMap = personMap;
+  window._allDates = allDates;
+
+  // Animate bars
+  setTimeout(()=>{
+    document.querySelectorAll('.pcard-bar[data-w]').forEach(el=>{
+      el.style.width = el.dataset.w+'%';
+    });
+  },300);
+}
+
+// ── MODAL ─────────────────────────────────────────────────────────────────────
+function openModal(name){
+  const p = window._personMap[name];
+  const dates = window._allDates;
+  if(!p) return;
+  const days = dates.map(d=>{
+    const dk=dateKey(d); const h=p.dayHours[dk]||0;
+    return `<div class="day-box ${isWeekend(d)?'weekend':''} ${h===0?'zero':''}">
+      <div class="d">${fmtDate(d)}</div>
+      <div class="h" style="color:${h>8?'#ef4444':h===0?'#4b5563':p.color}">${h}</div>
+      <div class="p">ชม.</div>
+    </div>`;
+  }).join('');
+  const projs = [...p.projects].join(', ')||'—';
+  const hasOT = Object.values(p.dayHours).some(h=>h>8);
+  const hasWknd = dates.filter(d=>isWeekend(d)).some(d=>p.dayHours[dateKey(d)]>0);
+  const note = [hasOT?'⚡ มี OT':'', hasWknd?'📅 ทำงานวันหยุด':'', !hasOT&&!hasWknd?'✅ ปกติ':''].filter(Boolean).join(' · ');
+  document.getElementById('modal-content').innerHTML=`
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div style="width:44px;height:44px;border-radius:50%;background:${p.color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px">${initials(p.name)}</div>
+      <div style="flex:1"><h2>${p.name}</h2><div style="font-size:12px;color:var(--muted)">${p.level}</div></div>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>
+    <div style="font-size:36px;font-weight:900;color:${p.color};margin-bottom:4px">${p.totalHours} <span style="font-size:16px;color:var(--muted)">ชม. / สัปดาห์</span></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${note}</div>
+    <div style="margin-bottom:4px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px">รายวัน</div>
+    <div class="modal-days">${days}</div>
+    <div style="margin-top:14px;font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Projects</div>
+    <div style="font-size:13px;color:var(--text);background:var(--bg3);padding:10px 12px;border-radius:8px">${projs}</div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal(){ document.getElementById('modal').classList.remove('open'); }
+
+// ── TAB ───────────────────────────────────────────────────────────────────────
+function switchTab(name){
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
+  const tabs=['overview','missing','project','chat'];
+  document.querySelectorAll('.tab')[tabs.indexOf(name)].classList.add('active');
+  document.getElementById('page-'+name).classList.add('active');
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────────────────
+function addBubble(text, role){
+  const box = document.getElementById('chat-messages');
+  const el = document.createElement('div');
+  el.className = `bubble ${role}`;
+  el.textContent = text;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+async function sendChat(){
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if(!q) return;
+  input.value = '';
+  addBubble(q, 'user');
+  const thinking = addBubble('กำลังคิด…', 'bot thinking');
+  try {
+    const url = APPS_SCRIPT_URL + '?action=chat&q=' + encodeURIComponent(q);
+    const resp = await fetch(url);
+    const data = await resp.json();
+    thinking.className = 'bubble bot';
+    thinking.textContent = data.answer || 'ไม่มีคำตอบ';
+  } catch(e) {
+    thinking.className = 'bubble bot';
+    thinking.textContent = 'เกิดข้อผิดพลาด: ' + e.message;
+  }
+}
+
+function quickAsk(q){
+  document.getElementById('chat-input').value = q;
+  sendChat();
+}
+
+// ── MAIN ──────────────────────────────────────────────────────────────────────
+(async()=>{
+  try {
+    const text = await fetchCSV();
+    // Sanity check — should be CSV not HTML
+    if(text.trim().startsWith('<')){
+      throw new Error('ได้รับ HTML แทน CSV — กรุณาตรวจสอบ Google Drive sharing setting');
+    }
+    const rows = parseCSV(text);
+    if(!rows.length) throw new Error('ไม่มีข้อมูลใน CSV');
+    const data = processData(rows);
+    if(!data) throw new Error('ประมวลผลข้อมูลไม่ได้');
+    render(data);
+    document.getElementById('loading').style.display='none';
+    document.getElementById('app').style.display='block';
+  } catch(e) {
+    document.getElementById('loading').innerHTML=`
+      <div style="color:#f87171;font-size:14px;text-align:center;padding:40px;max-width:400px">
+        <div style="font-size:40px;margin-bottom:16px">⚠️</div>
+        <b>โหลดข้อมูลไม่ได้</b><br><br>
+        ${e.message}<br><br>
+        <div style="font-size:12px;color:var(--muted)">ตรวจสอบว่าไฟล์ Google Drive ถูก share เป็น "Anyone with the link" แล้ว</div>
+      </div>`;
+  }
+})();
+</script>
+</body>
+</html>
