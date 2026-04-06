@@ -1,0 +1,546 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Workload Dashboard · MED</title>
+<style>
+:root {
+  --bg: #0f1117; --bg2: #1a1d27; --bg3: #22263a;
+  --card: #1e2235; --card2: #252a40;
+  --border: rgba(255,255,255,0.07);
+  --text: #e8eaf0; --muted: #6b7280; --subtle: #9ca3af;
+  --red: #ef4444; --orange: #f97316; --yellow: #eab308;
+  --green: #22c55e; --blue: #3b82f6; --purple: #a855f7; --cyan: #06b6d4;
+  --red-dim: rgba(239,68,68,0.15); --orange-dim: rgba(249,115,22,0.15);
+  --green-dim: rgba(34,197,94,0.15); --blue-dim: rgba(59,130,246,0.15);
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; font-size: 14px; min-height: 100vh; }
+
+/* HEADER */
+.header {
+  background: linear-gradient(135deg, #1e3a8a 0%, #312e81 50%, #1e1b4b 100%);
+  padding: 24px 32px; position: relative; overflow: hidden;
+}
+.header::before {
+  content: ''; position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 80% 50%, rgba(99,102,241,0.3) 0%, transparent 60%);
+}
+.header-inner { position: relative; display: flex; justify-content: space-between; align-items: center; }
+.header h1 { font-size: 22px; font-weight: 800; letter-spacing: -0.5px; }
+.header h1 span { color: #818cf8; }
+.header .sub { font-size: 12px; opacity: 0.6; margin-top: 3px; }
+.header .meta { text-align: right; font-size: 12px; opacity: 0.5; line-height: 1.7; }
+
+/* TABS */
+.tabs { display: flex; gap: 4px; padding: 16px 32px 0; border-bottom: 1px solid var(--border); }
+.tab {
+  padding: 8px 18px; border-radius: 8px 8px 0 0; font-size: 13px; font-weight: 600;
+  cursor: pointer; color: var(--muted); transition: all .2s; border: none; background: none;
+}
+.tab.active { color: var(--blue); background: var(--card); border-bottom: 2px solid var(--blue); }
+.tab:hover:not(.active) { color: var(--text); background: var(--bg3); }
+
+/* MAIN */
+.main { padding: 24px 32px; max-width: 1200px; }
+.page { display: none; }
+.page.active { display: block; }
+
+/* ALERT */
+.alert-banner {
+  display: flex; align-items: center; gap: 12px;
+  background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.3);
+  border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;
+  animation: pulse-border 2s infinite;
+}
+@keyframes pulse-border {
+  0%,100% { border-color: rgba(239,68,68,0.3); }
+  50% { border-color: rgba(239,68,68,0.7); }
+}
+.alert-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); animation: blink 1.2s infinite; flex-shrink: 0; }
+@keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+.alert-text { font-size: 13px; color: #fca5a5; }
+
+/* KPI GRID */
+.kpi-grid { display: grid; grid-template-columns: repeat(5,1fr); gap: 14px; margin-bottom: 20px; }
+.kpi {
+  background: var(--card); border-radius: 12px; padding: 16px 18px;
+  border: 1px solid var(--border); position: relative; overflow: hidden; cursor: default;
+  transition: transform .2s, box-shadow .2s;
+}
+.kpi:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(0,0,0,0.3); }
+.kpi::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: var(--accent,#3b82f6); }
+.kpi-icon { font-size: 22px; margin-bottom: 6px; }
+.kpi-val { font-size: 28px; font-weight: 800; color: var(--accent,#3b82f6); line-height: 1; }
+.kpi-label { font-size: 11px; color: var(--muted); margin-top: 4px; text-transform: uppercase; letter-spacing: .5px; }
+.kpi-sub { font-size: 11px; color: var(--subtle); margin-top: 2px; }
+
+/* PERSON CARDS */
+.person-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 20px; }
+.pcard {
+  background: var(--card); border-radius: 12px; padding: 18px;
+  border: 1px solid var(--border); cursor: pointer; transition: all .2s; position: relative; overflow: hidden;
+}
+.pcard:hover { transform: translateY(-3px); box-shadow: 0 12px 32px rgba(0,0,0,0.4); border-color: rgba(255,255,255,0.15); }
+.pcard.missing { border-color: rgba(239,68,68,0.3); background: rgba(239,68,68,0.05); }
+.pcard.missing:hover { border-color: rgba(239,68,68,0.6); }
+.pcard-top { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.avatar {
+  width: 42px; height: 42px; border-radius: 50%; display: flex; align-items: center;
+  justify-content: center; font-weight: 800; font-size: 15px; flex-shrink: 0;
+}
+.pcard-name { font-size: 14px; font-weight: 700; }
+.pcard-level { font-size: 11px; color: var(--muted); }
+.pcard-hours { font-size: 26px; font-weight: 800; margin-bottom: 4px; }
+.pcard-bar-bg { background: rgba(255,255,255,0.08); border-radius: 4px; height: 6px; overflow: hidden; }
+.pcard-bar { height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+.pcard-detail { font-size: 11px; color: var(--muted); margin-top: 6px; }
+.pcard-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 8px; }
+.badge { font-size: 10px; font-weight: 700; padding: 2px 7px; border-radius: 8px; }
+.badge.ot { background: rgba(239,68,68,0.2); color: #f87171; }
+.badge.wk { background: rgba(234,179,8,0.2); color: #fbbf24; }
+.badge.miss { background: rgba(239,68,68,0.15); color: #f87171; }
+.badge.ok { background: rgba(34,197,94,0.15); color: #4ade80; }
+.miss-icon { position: absolute; top: 14px; right: 14px; font-size: 18px; opacity: 0.6; }
+
+/* GRID LAYOUTS */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 16px; }
+.grid3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; margin-bottom: 16px; }
+.full { grid-column: 1/-1; }
+.card {
+  background: var(--card); border-radius: 12px; padding: 20px;
+  border: 1px solid var(--border);
+}
+.card h3 { font-size: 13px; font-weight: 700; color: var(--subtle); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 16px; }
+
+/* DAILY BARS */
+.day-row { display: flex; align-items: center; gap: 10px; margin-bottom: 9px; }
+.day-lbl { width: 90px; font-size: 11px; color: var(--subtle); flex-shrink: 0; }
+.day-lbl.weekend { color: var(--red); font-weight: 700; }
+.day-segs { flex: 1; display: flex; height: 24px; gap: 2px; }
+.seg {
+  border-radius: 4px; display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 700; color: rgba(255,255,255,0.9); overflow: hidden; min-width: 2px;
+  transition: flex .8s cubic-bezier(.4,0,.2,1);
+}
+.day-total { width: 30px; text-align: right; font-size: 12px; font-weight: 700; color: var(--subtle); flex-shrink: 0; }
+.day-weekend-bg { background: rgba(239,68,68,0.06); border-radius: 6px; padding: 4px; margin: -4px; }
+
+/* SVG DONUT */
+.donut-wrap { display: flex; align-items: center; gap: 20px; }
+.donut-legend { flex: 1; }
+.legend-item { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-label { font-size: 12px; flex: 1; }
+.legend-val { font-size: 12px; font-weight: 700; color: var(--text); }
+.legend-pct { font-size: 11px; color: var(--muted); width: 30px; text-align: right; }
+
+/* TABLE */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th { padding: 10px 12px; text-align: left; font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; border-bottom: 1px solid var(--border); }
+td { padding: 10px 12px; border-bottom: 1px solid var(--border); }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: rgba(255,255,255,0.02); }
+.chip { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 11px; font-weight: 700; }
+.chip.red { background: var(--red-dim); color: #f87171; }
+.chip.orange { background: var(--orange-dim); color: #fb923c; }
+.chip.green { background: var(--green-dim); color: #4ade80; }
+.chip.blue { background: var(--blue-dim); color: #60a5fa; }
+.chip.gray { background: rgba(255,255,255,0.07); color: var(--muted); }
+
+/* MODAL */
+.modal-bg { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; align-items: center; justify-content: center; backdrop-filter: blur(4px); }
+.modal-bg.open { display: flex; }
+.modal { background: var(--bg2); border: 1px solid var(--border); border-radius: 16px; padding: 28px; width: 480px; max-width: 90vw; animation: slide-up .25s ease; }
+@keyframes slide-up { from { opacity:0; transform: translateY(20px); } to { opacity:1; transform: translateY(0); } }
+.modal h2 { font-size: 18px; font-weight: 800; margin-bottom: 4px; }
+.modal .close { float: right; background: rgba(255,255,255,0.1); border: none; color: var(--text); width: 28px; height: 28px; border-radius: 50%; cursor: pointer; font-size: 16px; display: flex; align-items: center; justify-content: center; }
+.modal-section { margin-top: 16px; }
+.modal-section label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .5px; display: block; margin-bottom: 8px; }
+.modal-days { display: grid; grid-template-columns: repeat(6,1fr); gap: 6px; }
+.day-box { background: var(--bg3); border-radius: 8px; padding: 8px 4px; text-align: center; }
+.day-box .d { font-size: 10px; color: var(--muted); }
+.day-box .h { font-size: 16px; font-weight: 800; margin: 2px 0; }
+.day-box .p { font-size: 9px; color: var(--muted); }
+.day-box.weekend { background: rgba(239,68,68,0.1); }
+.day-box.zero { opacity: 0.35; }
+
+/* MISSING PAGE */
+.miss-grid { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 20px; }
+.miss-card {
+  background: var(--card); border: 1px solid rgba(239,68,68,0.25); border-radius: 12px; padding: 16px;
+  text-align: center; transition: all .2s;
+}
+.miss-card:hover { border-color: var(--red); transform: translateY(-2px); }
+.miss-avatar { width: 48px; height: 48px; border-radius: 50%; background: rgba(239,68,68,0.15); border: 2px dashed rgba(239,68,68,0.5); display: flex; align-items: center; justify-content: center; margin: 0 auto 10px; font-weight: 800; font-size: 16px; color: #f87171; }
+.miss-name { font-size: 13px; font-weight: 700; margin-bottom: 3px; }
+.miss-level { font-size: 11px; color: var(--muted); margin-bottom: 8px; }
+.miss-days { font-size: 22px; font-weight: 800; color: var(--red); }
+.miss-days-lbl { font-size: 10px; color: var(--muted); }
+
+/* COUNTER ANIMATION */
+.counter { display: inline-block; }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-inner">
+    <div>
+      <h1>⚡ Workload <span>Dashboard</span></h1>
+      <div class="sub">Machine and Equipment Development · 7-Day Rolling Report</div>
+    </div>
+    <div class="meta">
+      30 มี.ค. – 4 เม.ย. 2026<br>
+      ดึงข้อมูล: 6 เม.ย. 2026<br>
+      <span style="color:#818cf8">● Live</span>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" onclick="switchTab('overview')">📊 Overview</button>
+  <button class="tab" onclick="switchTab('missing')">🔴 ไม่กรอกข้อมูล (8)</button>
+  <button class="tab" onclick="switchTab('project')">📁 Project Detail</button>
+</div>
+
+<div class="main">
+
+<!-- ======== OVERVIEW PAGE ======== -->
+<div class="page active" id="page-overview">
+
+  <div class="alert-banner">
+    <div class="alert-dot"></div>
+    <div class="alert-text">
+      <b style="color:#f87171">พบ 8 คนไม่กรอกข้อมูลในสัปดาห์นี้</b> ·
+      Sinchai ทำงานเกิน (49 ชม. + วันเสาร์) ·
+      Somchat ทำงานวันเสาร์
+    </div>
+  </div>
+
+  <div class="kpi-grid">
+    <div class="kpi" style="--accent:#3b82f6">
+      <div class="kpi-icon">⏱️</div>
+      <div class="kpi-val counter" data-target="143">0</div>
+      <div class="kpi-label">ชั่วโมงรวม</div>
+      <div class="kpi-sub">7 วันที่ผ่านมา</div>
+    </div>
+    <div class="kpi" style="--accent:#22c55e">
+      <div class="kpi-icon">✅</div>
+      <div class="kpi-val counter" data-target="4">0</div>
+      <div class="kpi-label">กรอกข้อมูล</div>
+      <div class="kpi-sub">จาก 12 คนในทีม</div>
+    </div>
+    <div class="kpi" style="--accent:#ef4444">
+      <div class="kpi-icon">⚠️</div>
+      <div class="kpi-val counter" data-target="8">0</div>
+      <div class="kpi-label">ไม่กรอกข้อมูล</div>
+      <div class="kpi-sub">67% ของทีม!</div>
+    </div>
+    <div class="kpi" style="--accent:#f97316">
+      <div class="kpi-icon">🔥</div>
+      <div class="kpi-val counter" data-target="2">0</div>
+      <div class="kpi-label">OT / วันหยุด</div>
+      <div class="kpi-sub">ต้องติดตาม</div>
+    </div>
+    <div class="kpi" style="--accent:#a855f7">
+      <div class="kpi-icon">📁</div>
+      <div class="kpi-val counter" data-target="7">0</div>
+      <div class="kpi-label">Projects</div>
+      <div class="kpi-sub">ที่ active</div>
+    </div>
+  </div>
+
+  <!-- Person cards (กรอกแล้ว) -->
+  <div style="font-size:12px;color:var(--muted);margin-bottom:10px;text-transform:uppercase;letter-spacing:.5px;">✅ กรอกข้อมูลแล้ว — คลิกเพื่อดูรายละเอียด</div>
+  <div class="person-grid" id="logged-grid">
+
+    <div class="pcard" onclick="openModal('sinchai')">
+      <div class="pcard-top">
+        <div class="avatar" style="background:linear-gradient(135deg,#dc2626,#991b1b)">SI</div>
+        <div><div class="pcard-name">Sinchai Wichaksamethi</div><div class="pcard-level">O4</div></div>
+      </div>
+      <div class="pcard-hours" style="color:#ef4444">49 <span style="font-size:14px;color:var(--muted)">ชม.</span></div>
+      <div class="pcard-bar-bg"><div class="pcard-bar" style="width:0%;background:linear-gradient(90deg,#dc2626,#f97316)" data-w="100"></div></div>
+      <div class="pcard-detail">6 วัน · Engineering:ATD · I/O + Holding</div>
+      <div class="pcard-badges">
+        <span class="badge ot">⚡ OT 1 ชม.</span>
+        <span class="badge wk">📅 วันเสาร์</span>
+      </div>
+    </div>
+
+    <div class="pcard" onclick="openModal('somchat')">
+      <div class="pcard-top">
+        <div class="avatar" style="background:linear-gradient(135deg,#f97316,#ea580c)">SO</div>
+        <div><div class="pcard-name">Somchat Kraithep</div><div class="pcard-level">S2</div></div>
+      </div>
+      <div class="pcard-hours" style="color:#f97316">48 <span style="font-size:14px;color:var(--muted)">ชม.</span></div>
+      <div class="pcard-bar-bg"><div class="pcard-bar" style="width:0%;background:linear-gradient(90deg,#f97316,#eab308)" data-w="98"></div></div>
+      <div class="pcard-detail">6 วัน · 2FG84 + TCKP + Report</div>
+      <div class="pcard-badges">
+        <span class="badge wk">📅 วันเสาร์</span>
+      </div>
+    </div>
+
+    <div class="pcard" onclick="openModal('atjima')">
+      <div class="pcard-top">
+        <div class="avatar" style="background:linear-gradient(135deg,#2563eb,#1d4ed8)">AT</div>
+        <div><div class="pcard-name">Atjima Phanornuudomsuk</div><div class="pcard-level">S2</div></div>
+      </div>
+      <div class="pcard-hours" style="color:#3b82f6">30 <span style="font-size:14px;color:var(--muted)">ชม.</span></div>
+      <div class="pcard-bar-bg"><div class="pcard-bar" style="width:0%;background:linear-gradient(90deg,#3b82f6,#06b6d4)" data-w="61"></div></div>
+      <div class="pcard-detail">4 วัน · Palletizer + Leave + Meeting</div>
+      <div class="pcard-badges"><span class="badge ok">✓ ปกติ</span></div>
+    </div>
+
+    <div class="pcard" onclick="openModal('dravid')">
+      <div class="pcard-top">
+        <div class="avatar" style="background:linear-gradient(135deg,#16a34a,#15803d)">DR</div>
+        <div><div class="pcard-name">Dravid Tamsamak</div><div class="pcard-level">S3</div></div>
+      </div>
+      <div class="pcard-hours" style="color:#22c55e">16 <span style="font-size:14px;color:var(--muted)">ชม.</span></div>
+      <div class="pcard-bar-bg"><div class="pcard-bar" style="width:0%;background:linear-gradient(90deg,#16a34a,#22c55e)" data-w="33"></div></div>
+      <div class="pcard-detail">2 วัน · Report เท่านั้น</div>
+      <div class="pcard-badges"><span class="badge ok">✓ ปกติ</span></div>
+    </div>
+
+  </div>
+
+  <!-- Charts -->
+  <div class="grid3">
+    <div class="card">
+      <h3>ชั่วโมงรายวัน (ทีม)</h3>
+      <div class="day-row"><div class="day-lbl">30 มี.ค. จ.</div><div class="day-segs">
+        <div class="seg" style="flex:8;background:#dc2626" title="Sinchai 8h">8</div>
+        <div class="seg" style="flex:8;background:#f97316" title="Somchat 8h">8</div>
+        <div class="seg" style="flex:8;background:#3b82f6" title="Atjima 8h">8</div>
+        <div class="seg" style="flex:8;background:#22c55e" title="Dravid 8h">8</div>
+      </div><div class="day-total">32</div></div>
+
+      <div class="day-row"><div class="day-lbl">31 มี.ค. อ.</div><div class="day-segs">
+        <div class="seg" style="flex:8;background:#dc2626">8</div>
+        <div class="seg" style="flex:8;background:#f97316">8</div>
+        <div class="seg" style="flex:8;background:#3b82f6">8</div>
+        <div class="seg" style="flex:8;background:#22c55e">8</div>
+      </div><div class="day-total">32</div></div>
+
+      <div class="day-row"><div class="day-lbl">1 เม.ย. พ.</div><div class="day-segs">
+        <div class="seg" style="flex:9;background:#dc2626;box-shadow:0 0 8px #dc2626">9⚡</div>
+        <div class="seg" style="flex:8;background:#f97316">8</div>
+        <div class="seg" style="flex:8;background:#3b82f6">8</div>
+      </div><div class="day-total">25</div></div>
+
+      <div class="day-row"><div class="day-lbl">2 เม.ย. พฤ.</div><div class="day-segs">
+        <div class="seg" style="flex:8;background:#dc2626">8</div>
+        <div class="seg" style="flex:8;background:#f97316">8</div>
+        <div class="seg" style="flex:6;background:#3b82f6">6</div>
+      </div><div class="day-total">22</div></div>
+
+      <div class="day-row"><div class="day-lbl">3 เม.ย. ศ.</div><div class="day-segs">
+        <div class="seg" style="flex:8;background:#dc2626">8</div>
+        <div class="seg" style="flex:8;background:#f97316">8</div>
+        <div class="seg" style="flex:24;background:rgba(255,255,255,0.05);color:var(--muted)"></div>
+      </div><div class="day-total">16</div></div>
+
+      <div class="day-row">
+        <div class="day-lbl weekend">4 เม.ย. ส.🔴</div>
+        <div class="day-segs day-weekend-bg">
+          <div class="seg" style="flex:8;background:#dc2626;box-shadow:0 0 12px rgba(220,38,38,0.5)">8</div>
+          <div class="seg" style="flex:8;background:#f97316;box-shadow:0 0 12px rgba(249,115,22,0.5)">8</div>
+          <div class="seg" style="flex:24;background:rgba(239,68,68,0.08)"></div>
+        </div>
+        <div class="day-total" style="color:var(--red)">16</div>
+      </div>
+
+      <div class="legend" style="margin-top:14px;display:flex;gap:12px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)"><div style="width:10px;height:10px;border-radius:50%;background:#dc2626"></div>Sinchai</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)"><div style="width:10px;height:10px;border-radius:50%;background:#f97316"></div>Somchat</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)"><div style="width:10px;height:10px;border-radius:50%;background:#3b82f6"></div>Atjima</div>
+        <div style="display:flex;align-items:center;gap:5px;font-size:11px;color:var(--muted)"><div style="width:10px;height:10px;border-radius:50%;background:#22c55e"></div>Dravid</div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h3>ประเภทงาน</h3>
+      <div class="donut-wrap" style="flex-direction:column;">
+        <svg viewBox="0 0 120 120" width="120" height="120" style="margin:0 auto;display:block;">
+          <circle cx="60" cy="60" r="48" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="16"/>
+          <!-- I/O 58hrs = 40.6% → dasharray = 301.6*0.406 = 122.4 -->
+          <circle cx="60" cy="60" r="48" fill="none" stroke="#3b82f6" stroke-width="16"
+            stroke-dasharray="122 180" stroke-dashoffset="0" transform="rotate(-90 60 60)" stroke-linecap="butt"/>
+          <!-- Holding 51hrs = 35.7% → 107.7 -->
+          <circle cx="60" cy="60" r="48" fill="none" stroke="#dc2626" stroke-width="16"
+            stroke-dasharray="107 195" stroke-dashoffset="-122" transform="rotate(-90 60 60)" stroke-linecap="butt"/>
+          <!-- Non-proj 26hrs = 18.2% → 54.9 -->
+          <circle cx="60" cy="60" r="48" fill="none" stroke="#6b7280" stroke-width="16"
+            stroke-dasharray="55 247" stroke-dashoffset="-229" transform="rotate(-90 60 60)" stroke-linecap="butt"/>
+          <!-- Leave 8hrs = 5.6% → 16.9 -->
+          <circle cx="60" cy="60" r="48" fill="none" stroke="#a855f7" stroke-width="16"
+            stroke-dasharray="17 285" stroke-dashoffset="-284" transform="rotate(-90 60 60)" stroke-linecap="butt"/>
+          <text x="60" y="56" text-anchor="middle" fill="#e8eaf0" font-size="14" font-weight="800">143</text>
+          <text x="60" y="68" text-anchor="middle" fill="#6b7280" font-size="8">ชม.</text>
+        </svg>
+        <div style="margin-top:12px;width:100%">
+          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div><div class="legend-label">I/O Project</div><div class="legend-val">58</div><div class="legend-pct">41%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#dc2626"></div><div class="legend-label">Holding</div><div class="legend-val">51</div><div class="legend-pct">36%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#6b7280"></div><div class="legend-label">Report/Meeting</div><div class="legend-val">26</div><div class="legend-pct">18%</div></div>
+          <div class="legend-item"><div class="legend-dot" style="background:#a855f7"></div><div class="legend-label">Leave</div><div class="legend-val">8</div><div class="legend-pct">6%</div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======== MISSING PAGE ======== -->
+<div class="page" id="page-missing">
+  <div class="alert-banner">
+    <div class="alert-dot"></div>
+    <div class="alert-text"><b style="color:#f87171">8 คนต่อไปนี้ไม่มีข้อมูลการบันทึกชั่วโมงใน 7 วันที่ผ่านมา (30 มี.ค. – 4 เม.ย.)</b></div>
+  </div>
+  <div class="miss-grid">
+    <div class="miss-card"><div class="miss-avatar">EA</div><div class="miss-name">Eakapol Sangpare</div><div class="miss-level">O4</div><div class="miss-days">0</div><div class="miss-days-lbl">ชม. ใน 7 วัน</div></div>
+    <div class="miss-card"><div class="miss-avatar">NA</div><div class="miss-name">Natthaphong Auito</div><div class="miss-level">—</div><div class="miss-days">0</div><div class="miss-days-lbl">ชม. ใน 7 วัน</div></div>
+    <div class="miss-card"><div class="miss-avatar">WI</div><div class="miss-name">Witthawat Aumarom</div><div class="miss-level">O3</div><div class="miss-days">0</div><div class="miss-days-lbl">ชม. ใน 7 วัน</div></div>
+    <div class="miss-card"><div class="miss-avatar">PH</div><div class="miss-name">Phaisit Patchanee</div><div class="miss-level">O4</div><div class="miss-days">0</div><div class="miss-days-lbl">ชม. ใน 7 วัน</div></div>
+    <div class="miss-card"><div class="miss-avatar">TH</div><div class="miss-name">Thanundorn Yamsual</div><div class="miss-level">S3</div><div class="miss-days">0</div><div class="miss-days-lbl">ชม. ใน 7 วัน</div></div>
+    <div class="miss-card"><div class="miss-avatar">NK</div><div class="miss-name">Nathapong Nakgrod</div><div class="miss-level">S4</div><div class="miss-days">0</div><div class="miss-days-lbl">ชม. ใน 7 วัน</div></div>
+    <div class="miss-card"><div class="miss-avatar">CH</div><div class="miss-name">Charan Saensao</div><div class="miss-level">S2</div><div class="miss-days">0</div><div class="miss-days-lbl">ชม. ใน 7 วัน</div></div>
+    <div class="miss-card"><div class="miss-avatar">PU</div><div class="miss-name">Purawat Ruangsri</div><div class="miss-level">S1</div><div class="miss-days">0</div><div class="miss-days-lbl">ชม. ใน 7 วัน</div></div>
+  </div>
+  <div class="card">
+    <h3>สรุป Compliance</h3>
+    <div style="display:flex;align-items:center;gap:20px;padding:10px 0">
+      <div style="font-size:48px;font-weight:900;color:#ef4444">33%</div>
+      <div>
+        <div style="font-size:16px;font-weight:700;margin-bottom:4px">อัตราการกรอกข้อมูล</div>
+        <div style="font-size:13px;color:var(--muted)">4 จาก 12 คน กรอกข้อมูลในสัปดาห์นี้</div>
+        <div style="margin-top:10px;background:rgba(255,255,255,0.06);border-radius:8px;height:12px;overflow:hidden">
+          <div style="width:33%;height:100%;background:linear-gradient(90deg,#22c55e,#16a34a);border-radius:8px"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ======== PROJECT PAGE ======== -->
+<div class="page" id="page-project">
+  <div class="card">
+    <h3>รายละเอียดโปรเจกต์</h3>
+    <table>
+      <thead><tr><th>Project</th><th>พนักงาน</th><th>Charge Type</th><th style="text-align:right">ชั่วโมง</th><th>% ของทีม</th><th>สถานะ</th></tr></thead>
+      <tbody>
+        <tr><td><b>Engineering : ATD-Solarcell cleaning robot</b></td><td>Sinchai</td><td>Holding Charge</td><td style="text-align:right;font-weight:700;color:#ef4444">49</td><td><div style="background:rgba(255,255,255,0.06);border-radius:4px;height:8px;width:120px"><div style="width:100%;height:100%;background:#dc2626;border-radius:4px"></div></div></td><td><span class="chip red">OT + วันเสาร์</span></td></tr>
+        <tr><td><b>2FG84-Folding Assist Device</b></td><td>Somchat</td><td>I/O Project</td><td style="text-align:right;font-weight:700;color:#f97316">24</td><td><div style="background:rgba(255,255,255,0.06);border-radius:4px;height:8px;width:120px"><div style="width:49%;height:100%;background:#f97316;border-radius:4px"></div></div></td><td><span class="chip orange">วันเสาร์</span></td></tr>
+        <tr><td><b>Palletizer Oversea Model 3FG96</b></td><td>Atjima</td><td>I/O Project</td><td style="text-align:right;font-weight:700;color:#3b82f6">18</td><td><div style="background:rgba(255,255,255,0.06);border-radius:4px;height:8px;width:120px"><div style="width:37%;height:100%;background:#3b82f6;border-radius:4px"></div></div></td><td><span class="chip green">ปกติ</span></td></tr>
+        <tr><td><b>TCKP Ink Scrapper</b></td><td>Somchat</td><td>I/O Project</td><td style="text-align:right;font-weight:700;color:#3b82f6">16</td><td><div style="background:rgba(255,255,255,0.06);border-radius:4px;height:8px;width:120px"><div style="width:33%;height:100%;background:#3b82f6;border-radius:4px"></div></div></td><td><span class="chip green">ปกติ</span></td></tr>
+        <tr><td><b>Report / Meeting</b></td><td>Dravid, Somchat, Atjima</td><td>—</td><td style="text-align:right;font-weight:700;color:var(--muted)">26</td><td><div style="background:rgba(255,255,255,0.06);border-radius:4px;height:8px;width:120px"><div style="width:53%;height:100%;background:#6b7280;border-radius:4px"></div></div></td><td><span class="chip gray">Non-project</span></td></tr>
+        <tr><td><b>Cap closing machine dev</b></td><td>Atjima</td><td>Holding Charge</td><td style="text-align:right;font-weight:700;color:var(--muted)">2</td><td><div style="background:rgba(255,255,255,0.06);border-radius:4px;height:8px;width:120px"><div style="width:4%;height:100%;background:#6b7280;border-radius:4px"></div></div></td><td><span class="chip green">ปกติ</span></td></tr>
+        <tr><td><b>Leave</b></td><td>Atjima</td><td>—</td><td style="text-align:right;font-weight:700;color:#a855f7">8</td><td><div style="background:rgba(255,255,255,0.06);border-radius:4px;height:8px;width:120px"><div style="width:16%;height:100%;background:#a855f7;border-radius:4px"></div></div></td><td><span class="chip" style="background:rgba(168,85,247,0.15);color:#c084fc">ลา</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+
+</div><!-- /main -->
+
+<!-- MODALS -->
+<div class="modal-bg" id="modal" onclick="if(event.target===this)closeModal()">
+  <div class="modal" id="modal-content"></div>
+</div>
+
+<script>
+// Tab switching
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i) => t.classList.remove('active'));
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  const tabs = ['overview','missing','project'];
+  const idx = tabs.indexOf(name);
+  document.querySelectorAll('.tab')[idx].classList.add('active');
+  document.getElementById('page-'+name).classList.add('active');
+}
+
+// Counter animation
+function animateCounters() {
+  document.querySelectorAll('.counter').forEach(el => {
+    const target = +el.dataset.target;
+    let cur = 0;
+    const step = Math.ceil(target / 30);
+    const t = setInterval(() => {
+      cur = Math.min(cur + step, target);
+      el.textContent = cur;
+      if (cur >= target) clearInterval(t);
+    }, 30);
+  });
+}
+
+// Bar animation
+function animateBars() {
+  document.querySelectorAll('.pcard-bar[data-w]').forEach(el => {
+    setTimeout(() => { el.style.width = el.dataset.w + '%'; }, 300);
+  });
+}
+
+// Modals
+const modals = {
+  sinchai: {
+    name: 'Sinchai Wichaksamethi', level: 'O4', color: '#dc2626',
+    total: 49, days: [8,8,9,8,8,8], project: 'Engineering : ATD-Solarcell cleaning robot',
+    note: '⚡ OT 1 ชม. วันที่ 1 เม.ย. · 📅 ทำงานวันเสาร์ 4 เม.ย.'
+  },
+  somchat: {
+    name: 'Somchat Kraithep', level: 'S2', color: '#f97316',
+    total: 48, days: [8,8,8,8,8,8], project: '2FG84 + TCKP Ink Scrapper + Report',
+    note: '📅 ทำงานวันเสาร์ 4 เม.ย.'
+  },
+  atjima: {
+    name: 'Atjima Phanornuudomsuk', level: 'S2', color: '#3b82f6',
+    total: 30, days: [8,8,8,6,0,0], project: 'Palletizer Oversea + Leave + Meeting',
+    note: '✅ ชั่วโมงปกติ ไม่มี OT'
+  },
+  dravid: {
+    name: 'Dravid Tamsamak', level: 'S3', color: '#22c55e',
+    total: 16, days: [8,8,0,0,0,0], project: 'Report เท่านั้น',
+    note: '📋 บันทึกแค่ 2 วัน — อาจมีข้อมูลขาดหาย'
+  }
+};
+const dayLabels = ['30 มี.ค.','31 มี.ค.','1 เม.ย.','2 เม.ย.','3 เม.ย.','4 เม.ย.(ส.)'];
+
+function openModal(key) {
+  const d = modals[key];
+  const days = d.days.map((h,i) => `
+    <div class="day-box ${i===5?'weekend':''} ${h===0?'zero':''}">
+      <div class="d">${dayLabels[i]}</div>
+      <div class="h" style="color:${h>8?'#ef4444':h===0?'#4b5563':d.color}">${h}</div>
+      <div class="p">ชม.</div>
+    </div>`).join('');
+  document.getElementById('modal-content').innerHTML = `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+      <div style="width:44px;height:44px;border-radius:50%;background:${d.color};display:flex;align-items:center;justify-content:center;font-weight:800;font-size:16px">${d.name.slice(0,2).toUpperCase()}</div>
+      <div style="flex:1"><h2>${d.name}</h2><div style="font-size:12px;color:var(--muted)">${d.level}</div></div>
+      <button class="close" onclick="closeModal()">✕</button>
+    </div>
+    <div style="font-size:36px;font-weight:900;color:${d.color};margin-bottom:4px">${d.total} <span style="font-size:16px;color:var(--muted)">ชม. / สัปดาห์</span></div>
+    <div style="font-size:12px;color:var(--muted);margin-bottom:16px">${d.note}</div>
+    <div class="modal-section">
+      <label>รายวัน</label>
+      <div class="modal-days">${days}</div>
+    </div>
+    <div class="modal-section" style="margin-top:14px">
+      <label>Project</label>
+      <div style="font-size:13px;color:var(--text);background:var(--bg3);padding:10px 12px;border-radius:8px">${d.project}</div>
+    </div>`;
+  document.getElementById('modal').classList.add('open');
+}
+function closeModal() { document.getElementById('modal').classList.remove('open'); }
+
+// Init
+window.addEventListener('load', () => {
+  animateCounters();
+  animateBars();
+});
+</script>
+</body>
+</html>
