@@ -135,6 +135,14 @@ tr:hover td{background:rgba(255,255,255,.02)}
 .miss-days{font-size:22px;font-weight:800;color:var(--red)}
 .miss-days-lbl{font-size:10px;color:var(--muted)}
 
+/* CHAT */
+.qbtn{background:var(--bg3);border:1px solid var(--border);color:var(--subtle);padding:6px 12px;border-radius:20px;font-size:12px;cursor:pointer;transition:all .2s}
+.qbtn:hover{background:var(--card2);color:var(--text);border-color:rgba(255,255,255,.15)}
+.bubble{max-width:80%;padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.6;white-space:pre-wrap}
+.bubble.user{align-self:flex-end;background:var(--blue);color:#fff;border-bottom-right-radius:4px}
+.bubble.bot{align-self:flex-start;background:var(--card2);color:var(--text);border-bottom-left-radius:4px}
+.bubble.thinking{opacity:.6;font-style:italic}
+
 @media(max-width:768px){
   .kpi-grid{grid-template-columns:repeat(2,1fr)}
   .person-grid{grid-template-columns:1fr}
@@ -167,6 +175,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <button class="tab active" onclick="switchTab('overview')">📊 Overview</button>
   <button class="tab" onclick="switchTab('missing')" id="tab-missing">🔴 ไม่กรอกข้อมูล</button>
   <button class="tab" onclick="switchTab('project')">📁 Project Detail</button>
+  <button class="tab" onclick="switchTab('chat')">💬 ถามข้อมูล</button>
 </div>
 
 <div class="main">
@@ -223,6 +232,31 @@ tr:hover td{background:rgba(255,255,255,.02)}
   </div>
 </div>
 
+<!-- ======== CHAT PAGE ======== -->
+<div class="page" id="page-chat">
+  <div class="card">
+    <h3>💬 ถามข้อมูล Workload</h3>
+    <div id="chat-messages" style="min-height:280px;max-height:460px;overflow-y:auto;display:flex;flex-direction:column;gap:12px;margin-bottom:16px;padding-right:4px"></div>
+    <div style="display:flex;gap:10px">
+      <input id="chat-input" type="text"
+        placeholder="เช่น ใครทำงานมากที่สุด? หรือ project ไหน active บ้าง?"
+        style="flex:1;background:var(--bg3);border:1px solid var(--border);border-radius:10px;padding:10px 14px;color:var(--text);font-size:13px;outline:none;font-family:inherit"
+        onkeydown="if(event.key==='Enter')sendChat()"/>
+      <button onclick="sendChat()"
+        style="background:var(--blue);border:none;color:#fff;padding:10px 20px;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer">
+        ส่ง ➤
+      </button>
+    </div>
+    <div style="margin-top:10px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="qbtn" onclick="quickAsk('ใครทำงานมากที่สุดในสัปดาห์นี้?')">👤 ใครทำงานมากสุด?</button>
+      <button class="qbtn" onclick="quickAsk('มีใครทำงานวันหยุดบ้าง?')">📅 ทำงานวันหยุด</button>
+      <button class="qbtn" onclick="quickAsk('project ไหนใช้ชั่วโมงมากที่สุด?')">📁 Project หนักสุด</button>
+      <button class="qbtn" onclick="quickAsk('ใครยังไม่กรอกข้อมูลบ้าง?')">⚠️ ไม่กรอกข้อมูล</button>
+      <button class="qbtn" onclick="quickAsk('สรุปภาพรวม workload ของทีมสัปดาห์นี้')">📊 สรุปภาพรวม</button>
+    </div>
+  </div>
+</div>
+
 </div>
 </div>
 
@@ -233,7 +267,8 @@ tr:hover td{background:rgba(255,255,255,.02)}
 <script>
 // ── CONFIG ────────────────────────────────────────────────────────────────────
 const FILE_ID = '1eAqoKkeJ3Gwpculf0P1NRyDhLjNu2CXk';
-const CSV_URL = 'https://script.google.com/macros/s/AKfycbxCI2epzSvLxYPLVxcObjbE2vbHyGLdQCypIrh_sqMQcT-UwjFdfPor0IRR3n_a3P0-SA/exec';
+const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIkpGRBjs49NtZVrqMC29BB5t06vwTTHRbBRDDDi2oLg4WhW25ZyVAkVaDd75a0gUarg/exec';
+const CSV_URL = APPS_SCRIPT_URL + '?action=csv';
 
 const ROSTER = [
   {name:'Nathapong Nakgrod',    level:'S4'},
@@ -569,9 +604,44 @@ function closeModal(){ document.getElementById('modal').classList.remove('open')
 function switchTab(name){
   document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
-  const tabs=['overview','missing','project'];
+  const tabs=['overview','missing','project','chat'];
   document.querySelectorAll('.tab')[tabs.indexOf(name)].classList.add('active');
   document.getElementById('page-'+name).classList.add('active');
+}
+
+// ── CHAT ──────────────────────────────────────────────────────────────────────
+function addBubble(text, role){
+  const box = document.getElementById('chat-messages');
+  const el = document.createElement('div');
+  el.className = `bubble ${role}`;
+  el.textContent = text;
+  box.appendChild(el);
+  box.scrollTop = box.scrollHeight;
+  return el;
+}
+
+async function sendChat(){
+  const input = document.getElementById('chat-input');
+  const q = input.value.trim();
+  if(!q) return;
+  input.value = '';
+  addBubble(q, 'user');
+  const thinking = addBubble('กำลังคิด…', 'bot thinking');
+  try {
+    const url = APPS_SCRIPT_URL + '?action=chat&q=' + encodeURIComponent(q);
+    const resp = await fetch(url);
+    const data = await resp.json();
+    thinking.className = 'bubble bot';
+    thinking.textContent = data.answer || 'ไม่มีคำตอบ';
+  } catch(e) {
+    thinking.className = 'bubble bot';
+    thinking.textContent = 'เกิดข้อผิดพลาด: ' + e.message;
+  }
+}
+
+function quickAsk(q){
+  document.getElementById('chat-input').value = q;
+  sendChat();
 }
 
 // ── MAIN ──────────────────────────────────────────────────────────────────────
