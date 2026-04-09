@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Workload Dashboard · MED</title>
+<title>Workload Dashboard · PDE</title>
 <style>
 :root {
   --bg:#0f1117;--bg2:#1a1d27;--bg3:#22263a;
@@ -165,7 +165,7 @@ tr:hover td{background:rgba(255,255,255,.02)}
   <div class="header-inner">
     <div>
       <h1>⚡ Workload <span>Dashboard</span></h1>
-      <div class="sub">Machine and Equipment Development · 7-Day Rolling Report</div>
+      <div class="sub">PDE Manpower · MED · D&D · S&I · 7-Day Rolling Report</div>
     </div>
     <div class="meta" id="header-meta"></div>
   </div>
@@ -270,20 +270,54 @@ const FILE_ID = '1eAqoKkeJ3Gwpculf0P1NRyDhLjNu2CXk';
 const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyIkpGRBjs49NtZVrqMC29BB5t06vwTTHRbBRDDDi2oLg4WhW25ZyVAkVaDd75a0gUarg/exec';
 const CSV_URL = APPS_SCRIPT_URL + '?action=csv';
 
+// ROSTER: ใช้สำหรับตรวจสอบ compliance (ไม่กรอกข้อมูล)
+// MED = 0740-15400, D&D = 0740-15410, S&I = 0740-19110
 const ROSTER = [
-  {name:'Nathapong Nakgrod',    level:'S4'},
-  {name:'Dravid Tamsamak',      level:'S3'},
-  {name:'Thanundorn Yamsual',   level:'S3'},
-  {name:'Somchat Kraithep',     level:'S2'},
-  {name:'Charan Saensao',       level:'S2'},
-  {name:'Atjima Phanornuudomsuk', level:'S2'},
-  {name:'Purawat Ruangsri',     level:'S1'},
-  {name:'Eakapol Sangpare',     level:'O4'},
-  {name:'Sinchai Wichaksamethi',level:'O4'},
-  {name:'Phaisit Patchanee',    level:'O4'},
-  {name:'Natthaphong Auito',    level:'—'},
-  {name:'Witthawat Aumarom',    level:'O3'},
+  // MED — Machine and Equipment Development
+  {name:'Nathapong Nakgrod',          level:'S4', section:'MED'},
+  {name:'Dravid Tamsamak',            level:'S3', section:'MED'},
+  {name:'Thanundorn Yamsual',         level:'S3', section:'MED'},
+  {name:'Somchat Kraithep',           level:'S2', section:'MED'},
+  {name:'Charan Saensao',             level:'S2', section:'MED'},
+  {name:'Atjima Phanornuudomsuk',     level:'S2', section:'MED'},
+  {name:'Purawat Ruangsri',           level:'S1', section:'MED'},
+  {name:'Eakapol Sangpare',           level:'O4', section:'MED'},
+  {name:'Sinchai Wichaksamethi',      level:'O4', section:'MED'},
+  {name:'Phaisit Patchanee',          level:'O4', section:'MED'},
+  {name:'Natthaphong Auito',          level:'—',  section:'MED'},
+  {name:'Witthawat Aumarom',          level:'O3', section:'MED'},
+  // D&D — Design and Development
+  {name:'Natthaphong Wongwattanakij', level:'S4', section:'D&D'},
+  {name:'Wallop Seedee',              level:'S3', section:'D&D'},
+  {name:'Napaporn Sangraweewon',      level:'S3', section:'D&D'},
+  {name:'Peera Bhotirungsiyakorn',    level:'S3', section:'D&D'},
+  {name:'Poonyawee Nakasont',         level:'S2', section:'D&D'},
+  {name:'Apiwat Ruengdist',           level:'M1', section:'D&D'},
+  {name:'Nattawut Jukam',             level:'—',  section:'D&D'},
+  {name:'Jirawan Fhoithong',          level:'O3', section:'D&D'},
+  {name:'Watchara Sribang',           level:'Tmp',section:'D&D'},
+  {name:'Aomorrat Anuphapchatnawan',  level:'—',  section:'D&D'},
+  {name:'Yutthaphong Chae-ueng',      level:'—',  section:'D&D'},
+  // S&I — Solution and Integration
+  {name:'Chatchai Sayjai',            level:'S4', section:'S&I'},
+  {name:'Panithan Nittrairat',        level:'S3', section:'S&I'},
+  {name:'Thanyathorn Maobumrung',     level:'S2', section:'S&I'},
+  {name:'Winai Manacharoensab',       level:'O5', section:'S&I'},
+  {name:'Apinan Artsanathong',        level:'O3', section:'S&I'},
+  {name:'Varintorn Keawhanu',         level:'—',  section:'S&I'},
+  {name:'Tassayu Charoensuk',         level:'—',  section:'S&I'},
+  {name:'Jeerasak Sorsit',            level:'—',  section:'S&I'},
+  {name:'Warachaya Werawutsiri',      level:'—',  section:'S&I'},
+  {name:'Rangsan Junsee',             level:'—',  section:'S&I'},
+  {name:'Adithep Siha-Uan',           level:'—',  section:'S&I'},
 ];
+
+// Cost center → section short name mapping
+const CC_SECTION = {
+  '0740-15400': 'MED',
+  '0740-15410': 'D&D',
+  '0740-19110': 'S&I',
+};
 
 const COLORS = ['#dc2626','#f97316','#eab308','#22c55e','#06b6d4','#3b82f6','#8b5cf6','#ec4899','#14b8a6','#f59e0b','#84cc16','#a855f7'];
 const TH_DAYS = ['อา.','จ.','อ.','พ.','พฤ.','ศ.','ส.'];
@@ -352,7 +386,7 @@ function processData(rows){
   ROSTER.forEach((p,i)=>{
     personMap[p.name] = {
       ...p, color: COLORS[i%COLORS.length],
-      totalHours:0, dayHours:{}, projects:new Set(), chargeTypes:{}
+      totalHours:0, dayHours:{}, projects:new Set(), chargeTypes:{}, section: p.section||'MED'
     };
   });
 
@@ -362,16 +396,20 @@ function processData(rows){
     if(!d) return;
     const hrs = parseFloat(r.HOURS)||0;
     const name = r.USER_NAME;
+    const cc = r.INTERNAL_COSTCENTER || '';
+    const sectionLabel = CC_SECTION[cc] || cc || 'Other';
     if(!personMap[name]){
       // person in data but not in roster — add them
       const i = Object.keys(personMap).length;
       personMap[name] = {
         name, level: r.Employee_Level||'—', color: COLORS[i%COLORS.length],
-        totalHours:0, dayHours:{}, projects:new Set(), chargeTypes:{}
+        totalHours:0, dayHours:{}, projects:new Set(), chargeTypes:{}, section: sectionLabel
       };
     }
     const p = personMap[name];
     p.totalHours += hrs;
+    // keep section updated from data (more authoritative)
+    if(sectionLabel !== 'Other') p.section = sectionLabel;
     const dk = dateKey(d);
     p.dayHours[dk] = (p.dayHours[dk]||0) + hrs;
     if(r.PROJECT_NAME && r.PROJECT_NAME!=='Leave') p.projects.add(r.PROJECT_NAME);
@@ -444,29 +482,51 @@ function render(data){
     <div class="kpi" style="--accent:#f97316"><div class="kpi-icon">🔥</div><div class="kpi-val">${otCount}</div><div class="kpi-label">OT / วันหยุด</div><div class="kpi-sub">ต้องติดตาม</div></div>
     <div class="kpi" style="--accent:#a855f7"><div class="kpi-icon">📁</div><div class="kpi-val">${activeProj}</div><div class="kpi-label">Projects</div><div class="kpi-sub">ที่ active</div></div>`;
 
-  // Person cards
+  // Person cards — grouped by section
   const maxH = Math.max(...logged.map(p=>p.totalHours),1);
-  document.getElementById('logged-grid').innerHTML = logged.sort((a,b)=>b.totalHours-a.totalHours).map(p=>{
-    const hasPersonOT = Object.values(p.dayHours).some(h=>h>8);
-    const hasPersonWknd = allDates.filter(d=>isWeekend(d)).some(d=>p.dayHours[dateKey(d)]>0);
-    const w = Math.round((p.totalHours/maxH)*100);
-    const hColor = p.totalHours>48?'#ef4444':p.totalHours>40?'#f97316':'#3b82f6';
-    const projs = [...p.projects].slice(0,2).map(n=>n.length>20?n.slice(0,20)+'…':n).join(', ')||'Non-project';
-    return `<div class="pcard" onclick="openModal('${p.name}')">
-      <div class="pcard-top">
-        <div class="avatar" style="background:${p.color}">${initials(p.name)}</div>
-        <div><div class="pcard-name">${p.name}</div><div class="pcard-level">${p.level}</div></div>
-      </div>
-      <div class="pcard-hours" style="color:${hColor}">${p.totalHours} <span style="font-size:14px;color:var(--muted)">ชม.</span></div>
-      <div class="pcard-bar-bg"><div class="pcard-bar" style="width:0%;background:${p.color}" data-w="${w}"></div></div>
-      <div class="pcard-detail">${allDates.filter(d=>p.dayHours[dateKey(d)]>0).length} วัน · ${projs}</div>
-      <div class="pcard-badges">
-        ${hasPersonOT?'<span class="badge ot">⚡ OT</span>':''}
-        ${hasPersonWknd?'<span class="badge wk">📅 วันหยุด</span>':''}
-        ${!hasPersonOT&&!hasPersonWknd?'<span class="badge ok">✓ ปกติ</span>':''}
-      </div>
+  const sectionOrder = ['MED','D&D','S&I'];
+  const sectionColors = {'MED':'#3b82f6','D&D':'#22c55e','S&I':'#a855f7'};
+  const bySection = {};
+  logged.forEach(p=>{
+    const s = p.section||'Other';
+    if(!bySection[s]) bySection[s]=[];
+    bySection[s].push(p);
+  });
+  const allSections = [...sectionOrder.filter(s=>bySection[s]), ...Object.keys(bySection).filter(s=>!sectionOrder.includes(s))];
+  let personHTML = '';
+  allSections.forEach(sec=>{
+    const members = (bySection[sec]||[]).sort((a,b)=>b.totalHours-a.totalHours);
+    const secColor = sectionColors[sec]||'#6b7280';
+    personHTML += `<div style="grid-column:1/-1;display:flex;align-items:center;gap:10px;margin-top:8px;margin-bottom:2px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${secColor}"></div>
+      <span style="font-size:12px;font-weight:700;color:${secColor};text-transform:uppercase;letter-spacing:.5px">${sec}</span>
+      <div style="flex:1;height:1px;background:rgba(255,255,255,.06)"></div>
+      <span style="font-size:11px;color:var(--muted)">${members.length} คน</span>
     </div>`;
-  }).join('');
+    members.forEach(p=>{
+      const hasPersonOT = Object.values(p.dayHours).some(h=>h>8);
+      const hasPersonWknd = allDates.filter(d=>isWeekend(d)).some(d=>p.dayHours[dateKey(d)]>0);
+      const w = Math.round((p.totalHours/maxH)*100);
+      const hColor = p.totalHours>48?'#ef4444':p.totalHours>40?'#f97316':'#3b82f6';
+      const projs = [...p.projects].slice(0,2).map(n=>n.length>20?n.slice(0,20)+'…':n).join(', ')||'Non-project';
+      personHTML += `<div class="pcard" onclick="openModal('${p.name.replace(/'/g,"\\'")}')">
+        <div class="pcard-top">
+          <div class="avatar" style="background:${p.color}">${initials(p.name)}</div>
+          <div style="flex:1"><div class="pcard-name">${p.name}</div><div class="pcard-level">${p.level}</div></div>
+          <span style="font-size:10px;font-weight:700;padding:2px 7px;border-radius:8px;background:${secColor}22;color:${secColor}">${sec}</span>
+        </div>
+        <div class="pcard-hours" style="color:${hColor}">${p.totalHours} <span style="font-size:14px;color:var(--muted)">ชม.</span></div>
+        <div class="pcard-bar-bg"><div class="pcard-bar" style="width:0%;background:${p.color}" data-w="${w}"></div></div>
+        <div class="pcard-detail">${allDates.filter(d=>p.dayHours[dateKey(d)]>0).length} วัน · ${projs}</div>
+        <div class="pcard-badges">
+          ${hasPersonOT?'<span class="badge ot">⚡ OT</span>':''}
+          ${hasPersonWknd?'<span class="badge wk">📅 วันหยุด</span>':''}
+          ${!hasPersonOT&&!hasPersonWknd?'<span class="badge ok">✓ ปกติ</span>':''}
+        </div>
+      </div>`;
+    });
+  });
+  document.getElementById('logged-grid').innerHTML = personHTML;
 
   // Day chart
   const chartHTML = allDates.map(d=>{
@@ -523,20 +583,30 @@ function render(data){
       </div>`).join('')}
     </div>`;
 
-  // Missing tab
+  // Missing tab — all sections
   document.getElementById('tab-missing').textContent = `🔴 ไม่กรอกข้อมูล (${missing.length})`;
   document.getElementById('missing-alert').innerHTML =
-    `<b style="color:#f87171">${missing.length} คนต่อไปนี้ไม่มีข้อมูลการบันทึกชั่วโมงใน 7 วันที่ผ่านมา (${fmtDate(minDate)} – ${fmtDate(maxDate)})</b>`;
-  document.getElementById('miss-grid').innerHTML = missing.map(p=>`
-    <div class="miss-card">
-      <div class="miss-avatar">${initials(p.name)}</div>
-      <div class="miss-name">${p.name}</div>
-      <div class="miss-level">${p.level}</div>
-      <div class="miss-days">0</div>
-      <div class="miss-days-lbl">ชม. ใน 7 วัน</div>
-    </div>`).join('');
+    missing.length
+      ? `<b style="color:#f87171">${missing.length} คนต่อไปนี้ไม่มีข้อมูลการบันทึกชั่วโมงใน 7 วันที่ผ่านมา (${fmtDate(minDate)} – ${fmtDate(maxDate)})</b>`
+      : `<b style="color:#4ade80">ทุกคนกรอกข้อมูลครบแล้ว (${fmtDate(minDate)} – ${fmtDate(maxDate)})</b>`;
+  // Group missing by section
+  const missBySection = {};
+  missing.forEach(p=>{ const s=p.section||'Other'; if(!missBySection[s]) missBySection[s]=[]; missBySection[s].push(p); });
+  const missHTML = Object.entries(missBySection).map(([sec,people])=>`
+    <div style="grid-column:1/-1;font-size:11px;font-weight:700;color:${sectionColors[sec]||'#6b7280'};text-transform:uppercase;letter-spacing:.5px;margin-top:8px">${sec} — ไม่กรอก ${people.length} คน</div>
+    ${people.map(p=>`
+      <div class="miss-card">
+        <div class="miss-avatar">${initials(p.name)}</div>
+        <div class="miss-name">${p.name}</div>
+        <div class="miss-level">${p.level}</div>
+        <div class="miss-days">0</div>
+        <div class="miss-days-lbl">ชม. ใน 7 วัน</div>
+      </div>`).join('')}`).join('');
+  document.getElementById('miss-grid').innerHTML = missing.length
+    ? missHTML
+    : `<div style="grid-column:1/-1;text-align:center;padding:40px;color:var(--green);font-size:32px">✅<br><span style="font-size:14px;color:var(--muted)">ทุกคนกรอกข้อมูลแล้ว</span></div>`;
   document.getElementById('compliance-pct').textContent = pct+'%';
-  document.getElementById('compliance-text').textContent = `${logged.length} จาก ${teamSize} คน กรอกข้อมูลในสัปดาห์นี้`;
+  document.getElementById('compliance-text').textContent = `${logged.length} จาก ${teamSize} คน (MED+D&D+S&I) กรอกข้อมูลในสัปดาห์นี้`;
   setTimeout(()=>{ document.getElementById('compliance-bar').style.width=pct+'%'; },300);
 
   // Projects
